@@ -30,5 +30,5 @@ public class Ticket {
     private LocalTime arrival_time;
     private String carrier;
     private int stops;
-    private int price;
+    private double price;
 }
