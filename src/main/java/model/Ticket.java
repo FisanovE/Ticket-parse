@@ -12,9 +12,9 @@ import java.time.LocalTime;
 @Setter
 @Getter
 public class Ticket {
-    private String origin;
+    private CityTitle origin;
     private String origin_name;
-    private String destination;
+    private CityTitle destination;
     private String destination_name;
 
     @JsonFormat(pattern = Constants.DATA_PATTERN)

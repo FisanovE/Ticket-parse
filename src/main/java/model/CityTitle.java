@@ -3,7 +3,7 @@ package model;
 import exeptions.UnsupportedStatusException;
 
 public enum CityTitle {
-    VVO, TLV, UFA, LRN;
+    LRN, TLV, UFA, VVO;
 
     public static CityTitle from(String title) {
         for (CityTitle value : CityTitle.values()) {

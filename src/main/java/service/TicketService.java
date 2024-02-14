@@ -20,14 +20,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TicketService {
-    private final String path;
+    private final String pathDirectory;
     private final String nameInputFile;
     private final String nameOutputFile;
-    private String departureCity = "Владивосток";
-    private String arrivalCity = "Тель-Авив";
-    private ObjectMapper mapper = new ObjectMapper();
-    private File file;
-    private Wrapper wrapper;
+    private final CityTitle departureCityTitle;
+    private final CityTitle arrivalCityTitle;
     private List<Ticket> tickets;
     private List<Ticket> selectedTickets;
     private Map<String, Long> timeValues = new HashMap<>();
@@ -35,39 +32,41 @@ public class TicketService {
     private double medianPrice = 0.0;
 
 
-    public TicketService(String path, String nameInputFile, String nameOutputFile) {
-        this.path = path;
+    public TicketService(String pathDirectory, String nameInputFile, String nameOutputFile, CityTitle departureCityTitle,
+                         CityTitle arrivalCityTitle) {
+        this.pathDirectory = pathDirectory;
         this.nameInputFile = nameInputFile;
         this.nameOutputFile = nameOutputFile;
+        this.departureCityTitle = departureCityTitle;
+        this.arrivalCityTitle = arrivalCityTitle;
     }
 
     public void makeResult() throws IOException {
-        file = new File(path + nameInputFile);
-        mapper.registerModule(new JavaTimeModule());
-        wrapper = mapper.readValue(file, Wrapper.class);
-        tickets = wrapper.getTickets();
-
-        selectedTickets = tickets.stream()
-                .filter(ticket -> ticket.getOrigin_name().equals(departureCity) && ticket.getDestination_name().equals(arrivalCity))
-                .collect(Collectors.toList());
+        tickets = parseJson();
+        selectedTickets = selectTickets(tickets);
 
         for (Ticket ticket : selectedTickets) {
             if (!timeValues.containsKey(ticket.getCarrier())
-                    || calculateTimeDifference(ticket) < timeValues.get(ticket.getCarrier())) {
-                timeValues.put(ticket.getCarrier(), calculateTimeDifference(ticket));
+                    || calculateDifferenceOfTimeInMinutes(ticket) < timeValues.get(ticket.getCarrier())) {
+                timeValues.put(ticket.getCarrier(), calculateDifferenceOfTimeInMinutes(ticket));
             }
         }
 
         StringBuilder stringBuilder = new StringBuilder("Результат");
         stringBuilder.append("\n")
-                .append("Минимальное время полета между городами ").append(departureCity).append(" и ").append(arrivalCity)
+                .append("Минимальное время полета между городами ").append(getNameOfCity(departureCityTitle))
+                .append(" и ")
+                .append(getNameOfCity(arrivalCityTitle))
                 .append(" для каждого авиаперевозчика:")
                 .append("\n");
 
         for (String carrier : timeValues.keySet()) {
             stringBuilder.append(carrier)
                     .append(" - ")
-                    .append(timeValues.get(carrier))
+                    .append(timeValues.get(carrier) / 60)
+                    .append(" час ")
+                    .append(timeValues.get(carrier) % 60)
+                    .append(" мин")
                     .append("\n");
         }
 
@@ -87,9 +86,24 @@ public class TicketService {
 
         System.out.println(stringBuilder.toString());
 
-        FileWriter fin = new FileWriter(path + nameOutputFile);
+        FileWriter fin = new FileWriter(pathDirectory + nameOutputFile);
         fin.write(stringBuilder.toString());
         fin.close();
+    }
+
+    private List<Ticket> parseJson() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        File file = new File(pathDirectory + nameInputFile);
+        Wrapper wrapper = mapper.readValue(file, Wrapper.class);
+        return wrapper.getTickets();
+    }
+
+    private List<Ticket> selectTickets(List<Ticket> tickets) {
+        return tickets.stream()
+                .filter(ticket -> ticket.getOrigin().equals(departureCityTitle)
+                        && ticket.getDestination().equals(arrivalCityTitle))
+                .collect(Collectors.toList());
     }
 
     private double calculateMiddlePrice(List<Ticket> tickets) {
@@ -113,14 +127,14 @@ public class TicketService {
         }
     }
 
-    private long calculateTimeDifference(Ticket ticket) {
+    private long calculateDifferenceOfTimeInMinutes(Ticket ticket) {
 
         LocalDateTime departureTimeLocal = LocalDateTime.of(ticket.getDeparture_date(), ticket.getDeparture_time());
-        ZonedDateTime departureZoneTime = departureTimeLocal.atZone(ZoneId.of(getZoneOfCity(CityTitle.from(ticket.getOrigin()))));
+        ZonedDateTime departureZoneTime = departureTimeLocal.atZone(ZoneId.of(getZoneOfCity(departureCityTitle)));
         long departureTimeToHour = departureZoneTime.toInstant().toEpochMilli() / 1000 / 60;
 
         LocalDateTime arrivalTimeLocal = LocalDateTime.of(ticket.getArrival_date(), ticket.getArrival_time());
-        ZonedDateTime arrivalZoneTime = arrivalTimeLocal.atZone(ZoneId.of(getZoneOfCity(CityTitle.from(ticket.getDestination()))));
+        ZonedDateTime arrivalZoneTime = arrivalTimeLocal.atZone(ZoneId.of(getZoneOfCity(arrivalCityTitle)));
         long arrivalTimeToHour = arrivalZoneTime.toInstant().toEpochMilli() / 1000 / 60;
 
         return arrivalTimeToHour - departureTimeToHour;
@@ -128,14 +142,29 @@ public class TicketService {
 
     private String getZoneOfCity(CityTitle title) {
         switch (title) {
-            case TLV:
-                return "Asia/Tel_Aviv";
-            case VVO:
-                return "Asia/Vladivostok";
-            case UFA:
-                return "Asia/Yekaterinburg";
             case LRN:
                 return "Asia/Nicosia";
+            case TLV:
+                return "Asia/Tel_Aviv";
+            case UFA:
+                return "Asia/Yekaterinburg";
+            case VVO:
+                return "Asia/Vladivostok";
+            default:
+                throw new UnsupportedStatusException("Unknown title: " + title);
+        }
+    }
+
+    private String getNameOfCity(CityTitle title) {
+        switch (title) {
+            case LRN:
+                return "Ларнака";
+            case TLV:
+                return "Тель-Авив";
+            case UFA:
+                return "Уфа";
+            case VVO:
+                return "Владивосток";
             default:
                 throw new UnsupportedStatusException("Unknown title: " + title);
         }
