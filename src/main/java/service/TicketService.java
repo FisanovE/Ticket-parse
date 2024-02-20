@@ -84,7 +84,7 @@ public class TicketService {
                 .append(middlePrice - medianPrice)
                 .append("\n");
 
-        System.out.println(stringBuilder.toString());
+        System.out.println(stringBuilder);
 
         FileWriter fin = new FileWriter(pathDirectory + nameOutputFile);
         fin.write(stringBuilder.toString());
@@ -131,13 +131,13 @@ public class TicketService {
 
         LocalDateTime departureTimeLocal = LocalDateTime.of(ticket.getDeparture_date(), ticket.getDeparture_time());
         ZonedDateTime departureZoneTime = departureTimeLocal.atZone(ZoneId.of(getZoneOfCity(departureCityTitle)));
-        long departureTimeToHour = departureZoneTime.toInstant().toEpochMilli() / 1000 / 60;
+        long departureTimeInHour = departureZoneTime.toInstant().toEpochMilli() / 1000 / 60;
 
         LocalDateTime arrivalTimeLocal = LocalDateTime.of(ticket.getArrival_date(), ticket.getArrival_time());
         ZonedDateTime arrivalZoneTime = arrivalTimeLocal.atZone(ZoneId.of(getZoneOfCity(arrivalCityTitle)));
-        long arrivalTimeToHour = arrivalZoneTime.toInstant().toEpochMilli() / 1000 / 60;
+        long arrivalTimeInHour = arrivalZoneTime.toInstant().toEpochMilli() / 1000 / 60;
 
-        return arrivalTimeToHour - departureTimeToHour;
+        return arrivalTimeInHour - departureTimeInHour;
     }
 
     private String getZoneOfCity(CityTitle title) {
